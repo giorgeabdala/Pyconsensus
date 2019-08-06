@@ -6,6 +6,9 @@ import subprocess
 BLOOMBERG_ARQ = 'consenso.xlsx'
 ELEVEN_ARQ = 'eleven.pdf'
 
+#cabeçalho ta tabela de resultados
+HEADER = ['TICKER ', 'ELEVEN ', 'BLOOMBERG ', 'OUTRAS']
+
 
 # retorna a data do consenso e um dataFrame com os dados tratados da Eleven.
 # recebe o caminho do arquivo excel
@@ -46,6 +49,24 @@ def parse_eleven(pdf_file):
 
     return df
 
+def print_table(ativo1_bloom, ativo2_bloom, ativo1_elev, ativo2_elev):
+    #monta string das outras instituições
+    outras1 = str(ativo1_bloom['qtdCompra'].values[0]) + '/' + str(ativo1_bloom['qtdNeutro'].values[0]) + '/'+ str(ativo1_bloom['qtdVenda'].values[0])
+    outras2 = str(ativo2_bloom['qtdCompra'].values[0]) + '/' + str(ativo2_bloom['qtdNeutro'].values[0]) + '/'+ str(ativo2_bloom['qtdVenda'].values[0])
+
+    linha1 = [ticker1, ativo1_elev['target'].values[0], ativo1_bloom['target'].values[0], outras1]
+    linha2 = [ticker2, ativo2_elev['target'].values[0], ativo2_bloom['target'].values[0], outras2]
+
+    #imprime o formulá
+    #https://pt.stackoverflow.com/questions/308346/como-imprimir-as-informa%C3%A7%C3%B5es-no-formato-de-tabela-em-python
+
+    #format e imprime o cabeçalho
+    print('{:<16} {:<16} {:<19} {:<20}'.format(*HEADER))
+    #imprime linha com 60 '-'
+    print('-'*60)
+    print('{:<16} {:<16} {:<19.2f} {:<20}'.format(*linha1))
+    print('{:<16} {:<16} {:<19.2f} {:<20}'.format(*linha2))
+
 
 bloomberg = parse_bloomberg(BLOOMBERG_ARQ)
 bloom_date = bloomberg[0]
@@ -53,19 +74,16 @@ bloom_df = bloomberg[1]
 
 eleven_df = parse_eleven(ELEVEN_ARQ)
 
-ticker1 = 'CIEL3'
-ticker2 = 'BBDC4'
-space = "     "
+ticker1 = input("Digite o ticker 1:")
+ticker2 = input("Digite o ticker 2:")
 
-ativo1_bloom = bloom_df[bloom_df['ticker'] == ticker1]
-ativo1_elev = eleven_df[eleven_df['ticker'] == ticker1]
+bloom1 = bloom_df[bloom_df['ticker'] == ticker1]
+bloom2 = bloom_df[bloom_df['ticker'] == ticker2]
 
-ativo2_bloom = bloom_df[bloom_df['ticker'] == ticker2]
-ativo2_elev = eleven_df[eleven_df['ticker'] == ticker2]
+elev1 = eleven_df[eleven_df['ticker'] == ticker1]
+elev2 = eleven_df[eleven_df['ticker'] == ticker2]
 
-print('ticker', space, 'target EL', space, 'target Bloomberg', space, 'Outras')
-print(ticker1, space, ativo1_elev['target'].values[0], space, ativo1_bloom['target'].values[0], space)
+print_table(bloom1, bloom2, elev1, elev2)
 
-print (ativo1_bloom)
 
-https://pt.stackoverflow.com/questions/308346/como-imprimir-as-informa%C3%A7%C3%B5es-no-formato-de-tabela-em-python
+
