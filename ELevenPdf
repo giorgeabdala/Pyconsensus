@@ -1,6 +1,0 @@
-import subprocess
-import pandas as pd
-
-#chamada ao tabula-java
-subprocess.call("java -jar ./tabula-1.0.3-jar-with-dependencies.jar -p 2 -a 82.923,35.0,738.122,560.052 -o saida.csv eleven.pdf", shell=True)
-df = pd.read_csv("saida.csv", sep=",", encoding='cp1252')
