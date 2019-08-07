@@ -76,6 +76,10 @@ def parse_eleven(pdf_file):
     return df
 
 def print_table(ativo1_bloom, ativo2_bloom, ativo1_elev, ativo2_elev):
+
+    ticker1 = ativo1_elev['ticker'].values[0]
+    ticker2 = ativo2_elev['ticker'].values[0]
+    
     #monta string das outras instituições
     outras1 = str(ativo1_bloom['qtdCompra'].values[0]) + '/' + str(ativo1_bloom['qtdNeutro'].values[0]) + '/'+ str(ativo1_bloom['qtdVenda'].values[0])
     outras2 = str(ativo2_bloom['qtdCompra'].values[0]) + '/' + str(ativo2_bloom['qtdNeutro'].values[0]) + '/'+ str(ativo2_bloom['qtdVenda'].values[0])
@@ -91,19 +95,41 @@ def print_table(ativo1_bloom, ativo2_bloom, ativo1_elev, ativo2_elev):
     print('{:<16} {:<16} {:<19.2f} {:<20}'.format(*linha2))
 
 
-bloomberg = parse_bloomberg(BLOOMBERG_ARQ)
-bloom_date = bloomberg[0]
-bloom_df = bloomberg[1]
+def process_ticker(bloom_df, eleven_df):
+    
+   # try:
+        ticker1 = input("Digite o ticker 1:")
+        ticker2 = input("Digite o ticker 2:")
 
-eleven_df = parse_eleven(ELEVEN_ARQ)
+        #maiucuslo
+        ticker1 = ticker1.upper()
+        ticker2 = ticker2.upper()
 
-ticker1 = input("Digite o ticker 1:")
-ticker2 = input("Digite o ticker 2:")
+        bloom1 = bloom_df[bloom_df['ticker'] == ticker1]
+        bloom2 = bloom_df[bloom_df['ticker'] == ticker2]
 
-bloom1 = bloom_df[bloom_df['ticker'] == ticker1]
-bloom2 = bloom_df[bloom_df['ticker'] == ticker2]
+        elev1 = eleven_df[eleven_df['ticker'] == ticker1]
+        elev2 = eleven_df[eleven_df['ticker'] == ticker2]
 
-elev1 = eleven_df[eleven_df['ticker'] == ticker1]
-elev2 = eleven_df[eleven_df['ticker'] == ticker2]
+        print_table(bloom1, bloom2, elev1, elev2)
+        process_ticker(bloom_df, eleven_df)
 
-print_table(bloom1, bloom2, elev1, elev2)
+    #except:
+            #print ("Não foi possível encontrar os ticker solicitado. Por favor, tente novamente");
+   #         process_ticker(bloom_df, eleven_df)
+        
+
+
+def start():
+        bloomberg = parse_bloomberg(BLOOMBERG_ARQ)
+        bloom_date = bloomberg[0]
+        bloom_df = bloomberg[1]
+
+        eleven_df = parse_eleven(ELEVEN_ARQ)
+
+        process_ticker(bloom_df, eleven_df)
+
+
+start()
+
+   
