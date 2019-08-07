@@ -36,14 +36,40 @@ def parse_eleven(pdf_file):
     COLUMN_NAME = ["ticker", "target", "precoLimite", "recomendacao", "risco", "qualidade", "indice"]
     # chamada ao tabula-java
     subprocess.call(
-        "java -jar ./tabula-1.0.3-jar-with-dependencies.jar -p 2 -a 82.923,35.0,738.122,560.052 -o saida.csv eleven.pdf",
+        "java -jar ./tabula-1.0.3-jar-with-dependencies.jar -p 2 -a 82.923,35.0,738.122,560.052 -o saidaP2.csv eleven.pdf",
         shell=True)
-    df = pd.read_csv("saida.csv", sep=",", encoding='cp1252')
+    subprocess.call(
+        "java -jar ./tabula-1.0.3-jar-with-dependencies.jar -p 3 -a 70.28,35.0,764.895,560.052 -o saidaP3.csv eleven.pdf",
+        shell=True)
+    subprocess.call(
+        "java -jar ./tabula-1.0.3-jar-with-dependencies.jar -p 4 -a 70.28,35.0,764.895,560.052 -o saidaP4.csv eleven.pdf",
+        shell=True)
+
+    # lê pagina 2
+    dfP2 = pd.read_csv("saidaP2.csv", sep=",", encoding='cp1252')
+    # lê pagina 3
+    dfP3 = pd.read_csv("saidaP3.csv", sep=",", encoding='cp1252')
+    # lê pagina 4
+    dfP4 = pd.read_csv("saidaP4.csv", sep=",", encoding='cp1252')
+
+    # deleta as primeira linha das paginas
+    dfP2 = dfP2.drop([0, 1, 2, 3, 4])
+    dfP3 = dfP3.drop([0, 1, 2])
+    dfP4 = dfP4.drop([0, 1, 2])
+
     # delete as colunas inuteis
-    df = df.drop(df.columns[[0, 1, 3, 5, 8, 12]], axis=1)
-    # deleta primeira linha
-    df = df.drop([0, 1, 2, 3, 4])
-    df.columns = COLUMN_NAME
+    dfP2 = dfP2.drop(dfP2.columns[[0, 1, 3, 5, 8, 12]], axis=1)
+    dfP3 = dfP3.drop(dfP3.columns[[0, 2, 4, 6, 8, 12]], axis=1)
+    dfP4 = dfP4.drop(dfP4.columns[[0, 2, 4, 6, 8, 12]], axis=1)
+
+    # renomeando as counas
+    dfP2.columns = COLUMN_NAME
+    dfP3.columns = COLUMN_NAME
+    dfP4.columns = COLUMN_NAME
+
+    # unindo os 3 dataFrame em um
+    df = pd.concat([dfP2, dfP3, dfP4])
+
     # deleta linhas onde todos os valores são NaN
     df = df.dropna(how='all')
 
