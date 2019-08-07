@@ -86,14 +86,21 @@ def print_table(ativo1_bloom, ativo2_bloom, ativo1_elev, ativo2_elev):
 
     linha1 = [ticker1, ativo1_elev['target'].values[0], ativo1_bloom['target'].values[0], outras1]
     linha2 = [ticker2, ativo2_elev['target'].values[0], ativo2_bloom['target'].values[0], outras2]
+	
+	print_header()
+	print_linha(linha1)
+	print_linha(linha2)
+	
 
-    #format e imprime o cabeçalho
+def print_header():
+	#formata e imprime o cabeçalho
     print('{:<16} {:<16} {:<19} {:<20}'.format(*HEADER))
     #imprime linha com 60 '-'
     print('-'*60)
-    print('{:<16} {:<16} {:<19.2f} {:<20}'.format(*linha1))
-    print('{:<16} {:<16} {:<19.2f} {:<20}'.format(*linha2))
-
+	
+def print_linha(linha):
+	print('{:<16} {:<16} {:<19.2f} {:<20}'.format(*linha))
+	
 
 def process_ticker(bloom_df, eleven_df):
     
@@ -130,6 +137,16 @@ def start():
         process_ticker(bloom_df, eleven_df)
 
 
-start()
+#start()
 
-   
+df = parse_eleven(BLOOMBERG_ARQ)
+
+
+
+
+
+
+    
+
+    
+       
