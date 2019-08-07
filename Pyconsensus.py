@@ -83,9 +83,6 @@ def print_table(ativo1_bloom, ativo2_bloom, ativo1_elev, ativo2_elev):
     linha1 = [ticker1, ativo1_elev['target'].values[0], ativo1_bloom['target'].values[0], outras1]
     linha2 = [ticker2, ativo2_elev['target'].values[0], ativo2_bloom['target'].values[0], outras2]
 
-    #imprime o formulá
-    #https://pt.stackoverflow.com/questions/308346/como-imprimir-as-informa%C3%A7%C3%B5es-no-formato-de-tabela-em-python
-
     #format e imprime o cabeçalho
     print('{:<16} {:<16} {:<19} {:<20}'.format(*HEADER))
     #imprime linha com 60 '-'
@@ -110,6 +107,3 @@ elev1 = eleven_df[eleven_df['ticker'] == ticker1]
 elev2 = eleven_df[eleven_df['ticker'] == ticker2]
 
 print_table(bloom1, bloom2, elev1, elev2)
-
-
-
