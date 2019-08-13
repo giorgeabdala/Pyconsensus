@@ -9,10 +9,10 @@ BLOOMBERG_ARQ = 'consenso.xlsx'
 ELEVEN_ARQ = 'eleven.pdf'
 
 #cabeçalho da tabela de resultados
-HEADER = ['TICKER ', 'ELEVEN ', 'BLOOMBERG ', 'OUTRAS']
+HEADER = ['TICKER ', 'ELEVEN ', 'UPSIDE', 'BLOOMBERG ', 'UPSIDE', 'OUTRAS']
 
 # nome das colunas do df final eleven
-COLUMN_NAME_ELEVEN = ['ticker', 'atual', 'target', 'precoLimite', 'recomendacao', 'risco', 'qualidade', 'indice', 'upside']
+COLUMN_NAME_ELEVEN = ['ticker', 'atual', 'target', 'precoLimite', 'recomendacao', 'risco', 'qualidade', 'indice', 'upsideBack']
 COLUMN_NAME_BLOOMBERG = ['ticker', 'target', 'consenso', 'qtdInst', 'qtdCompra', 'qtdNeutro', 'qtdVenda']
 
 #cordenada data arquivo eleven
@@ -63,8 +63,10 @@ def read_page_eleven(pdf_file, page, cordenadas):
         #deleta coluna companhia
 	df = df.drop(df.columns[0], axis=1)
 
-
 	df.columns = COLUMN_NAME_ELEVEN
+
+	# faz um replace na coluna ticker e retira o R$
+	df['target'] = df['target'].str.replace('R$ ', '')
 	
 	return df
 
@@ -85,8 +87,8 @@ def print_table(ativo1_bloom, ativo2_bloom, ativo1_elev, ativo2_elev, ticker1, t
     outras1 = str(ativo1_bloom['qtdCompra'].values[0]) + '/' + str(ativo1_bloom['qtdNeutro'].values[0]) + '/'+ str(ativo1_bloom['qtdVenda'].values[0])
     outras2 = str(ativo2_bloom['qtdCompra'].values[0]) + '/' + str(ativo2_bloom['qtdNeutro'].values[0]) + '/'+ str(ativo2_bloom['qtdVenda'].values[0])
 
-    linha1 = [ticker1, ativo1_elev['target'].values[0], ativo1_bloom['target'].values[0], outras1]
-    linha2 = [ticker2, ativo2_elev['target'].values[0], ativo2_bloom['target'].values[0], outras2]
+    linha1 = [ticker1, ativo1_elev['target'].values[0], ativo1_elev['upside'].values[0], ativo1_bloom['target'].values[0], ativo1_bloom['upside'].values[0], outras1]
+    linha2 = [ticker2, ativo2_elev['target'].values[0], ativo2_elev['upside'].values[0], ativo2_bloom['target'].values[0], ativo2_bloom['upside'].values[0],  outras2]
 	
     print_header()
     print_linha(linha1)
@@ -96,29 +98,34 @@ def print_table(ativo1_bloom, ativo2_bloom, ativo1_elev, ativo2_elev, ticker1, t
 
 def print_header():
 	#formata e imprime o cabeçalho
-    print('{:<16} {:<16} {:<19} {:<20}'.format(*HEADER))
+    print('{:<16} {:<16} {:<16} {:<19} {:<16} {:<20}'.format(*HEADER))
     #imprime linha com 60 '-'
     print('-'*60)
 
 def print_linha(linha):
-        print('{:<16} {:<16} {:<19.2f} {:<20}'.format(*linha))
+        print('{:<16} {:<16} {:<16} {:<19.2f} {:<16} {:<20}'.format(*linha))
 	
 
 def process_ticker(bloom_df, eleven_df):
     
    # try:
         ticker1 = input("Digite o ticker 1:")
+        preco1 = input("Digite o preço atual:")
         ticker2 = input("Digite o ticker 2:")
-
-        #maiúcuslo
-        ticker1 = ticker1.upper()
-        ticker2 = ticker2.upper()
+        preco2 = input("Digite o preço atual:")
 
         bloom1 = busca_ticker(ticker1, bloom_df)
-        bloom2 = busca_ticker(ticker2, bloom_df)
+        bloom2 = busca_ticker(ticker2, bloom_df)      
 
         elev1 = busca_ticker(ticker1, eleven_df)
         elev2 = busca_ticker(ticker2, eleven_df)
+
+        #add coluna com o upside atualizado
+        bloom1['upside'] = calcula_upside(preco1, bloom1['target'].values[0])
+        bloom2['upside'] = calcula_upside(preco2, bloom2['target'].values[0])
+
+        elev1['upside'] = calcula_upside(preco1, elev1['target'].values[0])
+        elev2['upside'] = calcula_upside(preco2, elev2['target'].values[0])
 
         print_table(bloom1, bloom2, elev1, elev2, ticker1, ticker2)
         process_ticker(bloom_df, eleven_df)
@@ -128,12 +135,25 @@ def process_ticker(bloom_df, eleven_df):
    #         process_ticker(bloom_df, eleven_df)
 
 def busca_ticker(ticker, df):
+        #maiúcuslo
+        ticker = ticker.upper()
         df = df[df['ticker'] == ticker]
 
 	#Adicona uma linha vazia caso a busca não encontre o ticker
         if df.shape[0] == 0:
                 df = df.append({} , ignore_index=True)
         return df
+
+
+#calcula o upside. Recebe preço atual e target
+def calcula_upside(atual, target):
+    atual = float(atual)
+    target = float(target)
+
+    upside = (target/atual) - 1 
+        
+    return upside * 100
+    
 
 def start():
         bloomberg = parse_bloomberg(BLOOMBERG_ARQ)
@@ -145,7 +165,6 @@ def start():
         
 start()
 
-#df = parse_eleven(ELEVEN_ARQ)
 
 #df = read_page_eleven(ELEVEN_ARQ, "3", cord_page3)
 
