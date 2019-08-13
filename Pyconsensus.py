@@ -1,4 +1,5 @@
 # requisitos: panda, xlrd,
+#pd.set_option('display.max_columns', 15)
 import pandas as pd
 import subprocess
 
@@ -7,14 +8,25 @@ import subprocess
 BLOOMBERG_ARQ = 'consenso.xlsx'
 ELEVEN_ARQ = 'eleven.pdf'
 
-#cabeçalho ta tabela de resultados
+#cabeçalho da tabela de resultados
 HEADER = ['TICKER ', 'ELEVEN ', 'BLOOMBERG ', 'OUTRAS']
+
+# nome das colunas do df final eleven
+COLUMN_NAME_ELEVEN = ['ticker', 'atual', 'target', 'precoLimite', 'recomendacao', 'risco', 'qualidade', 'indice', 'upside']
+COLUMN_NAME_BLOOMBERG = ['ticker', 'target', 'consenso', 'qtdInst', 'qtdCompra', 'qtdNeutro', 'qtdVenda']
+
+#cordenada data arquivo eleven
+cord_date = '108.208,47.969,134.238,117.876'
+
+cord_page2 = '103.999,35.0,751.018,563.771' 
+cord_page3 = '43.001,27.0,801.575,567.67'
+cord_page4 = '43.001,27.0,801.575,567.67'
+
+
 
 # retorna a data do consenso e um dataFrame com os dados tratados da Eleven.
 # recebe o caminho do arquivo excel
 def parse_bloomberg(excel_file):
-    # define nome das colunas do DF final
-    COLUMN_NAME = ['ticker', 'target', 'consenso', 'qtdInst', 'qtdCompra', 'qtdNeutro', 'qtdVenda']
     # carrega o arquivo excel pulando as primeiras 9 linhas
     df = pd.read_excel(excel_file)
     # pega a data do arquivo
@@ -24,55 +36,47 @@ def parse_bloomberg(excel_file):
     # deleta as colunas 0,2 e 5 (Unamed, Empresa, preço e Upside/Downside)
     df = df.drop(df.columns[[0, 2, 3, 5]], axis=1)
     # renomeado colunas
-    df.columns = COLUMN_NAME
+    df.columns = COLUMN_NAME_BLOOMBERG
     # faz um replace na coluna ticker e retira o ' BS'
     df['ticker'] = df['ticker'].str.replace(' BS', '')
 
     result = [date, df]
     return result
 
+
+def read_page_eleven(pdf_file, page, cordenadas):
+	# chamada ao tabula-java
+	subprocess.call(
+            "java -jar ./tabula-1.0.3-jar-with-dependencies.jar -p " + page + " -a " + cordenadas + " -o saida.csv eleven.pdf", shell=True)
+        #Lê página do csv de saída
+	df = pd.read_csv("saida.csv", sep=",", encoding='cp1252')
+
+	# deleta linhas onde todos os valores são NaN
+	df = df.dropna(how='all')
+
+	#mantem apenas colunas com ao menos a metade(df.shape[0]/2) de linhas não-nan
+	df = df.dropna(thresh=df.shape[0]/2, axis=1)
+
+        #Deleta linhas onde a segunda coluna é nan
+	df = df.dropna(subset=[df.columns[1]])
+
+        #deleta coluna companhia
+	df = df.drop(df.columns[0], axis=1)
+
+
+	df.columns = COLUMN_NAME_ELEVEN
+	
+	return df
+
 def parse_eleven(pdf_file):
-    # nome das colunas do df final
-    COLUMN_NAME = ["ticker", "target", "precoLimite", "recomendacao", "risco", "qualidade", "indice"]
-    # chamada ao tabula-java
-    subprocess.call(
-        "java -jar ./tabula-1.0.3-jar-with-dependencies.jar -p 2 -a 82.923,35.0,738.122,560.052 -o saidaP2.csv eleven.pdf",
-        shell=True)
-    subprocess.call(
-        "java -jar ./tabula-1.0.3-jar-with-dependencies.jar -p 3 -a 70.28,35.0,764.895,560.052 -o saidaP3.csv eleven.pdf",
-        shell=True)
-    subprocess.call(
-        "java -jar ./tabula-1.0.3-jar-with-dependencies.jar -p 4 -a 70.28,35.0,764.895,560.052 -o saidaP4.csv eleven.pdf",
-        shell=True)
 
-    # lê pagina 2
-    dfP2 = pd.read_csv("saidaP2.csv", sep=",", encoding='cp1252')
-    # lê pagina 3
-    dfP3 = pd.read_csv("saidaP3.csv", sep=",", encoding='cp1252')
-    # lê pagina 4
-    dfP4 = pd.read_csv("saidaP4.csv", sep=",", encoding='cp1252')
-
-    # deleta as primeira linha das paginas
-    dfP2 = dfP2.drop([0, 1, 2, 3, 4])
-    dfP3 = dfP3.drop([0, 1, 2])
-    dfP4 = dfP4.drop([0, 1, 2])
-
-    # delete as colunas inuteis
-    dfP2 = dfP2.drop(dfP2.columns[[0, 1, 3, 5, 8, 12]], axis=1)
-    dfP3 = dfP3.drop(dfP3.columns[[0, 2, 4, 6, 8, 12]], axis=1)
-    dfP4 = dfP4.drop(dfP4.columns[[0, 2, 4, 6, 8, 12]], axis=1)
-
-    # renomeando as counas
-    dfP2.columns = COLUMN_NAME
-    dfP3.columns = COLUMN_NAME
-    dfP4.columns = COLUMN_NAME
+    dfP2 = read_page_eleven(ELEVEN_ARQ, "2", cord_page2)
+    dfP3 = read_page_eleven(ELEVEN_ARQ, "3", cord_page2)
+    dfP4 = read_page_eleven(ELEVEN_ARQ, "4", cord_page2)
 
     # unindo os 3 dataFrame em um
     df = pd.concat([dfP2, dfP3, dfP4])
-
-    # deleta linhas onde todos os valores são NaN
-    df = df.dropna(how='all')
-
+    
     return df
 
 def print_table(ativo1_bloom, ativo2_bloom, ativo1_elev, ativo2_elev, ticker1, ticker2):
@@ -141,4 +145,26 @@ def start():
         
 start()
 
-#df = parse_eleven(BLOOMBERG_ARQ)
+#df = parse_eleven(ELEVEN_ARQ)
+
+#df = read_page_eleven(ELEVEN_ARQ, "3", cord_page3)
+
+
+
+
+    
+
+    
+        
+    
+
+
+
+
+
+
+
+
+
+
+
