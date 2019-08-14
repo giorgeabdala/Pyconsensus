@@ -27,7 +27,7 @@ cord_page4 = '43.001,27.0,801.575,567.67'
 # retorna a data do consenso e um dataFrame com os dados tratados da Eleven.
 # recebe o caminho do arquivo excel
 def parse_bloomberg(excel_file):
-    # carrega o arquivo excel pulando as primeiras 9 linhas
+    # carrega o arquivo excel 
     df = pd.read_excel(excel_file)
     # pega a data do arquivo
     date = df.iloc[4, 1]
@@ -65,8 +65,9 @@ def read_page_eleven(pdf_file, page, cordenadas):
 
 	df.columns = COLUMN_NAME_ELEVEN
 
-	# faz um replace na coluna ticker e retira o R$
-	df['target'] = df['target'].str.replace('R$ ', '')
+	# faz um replace na coluna target e retira o R$
+	df['target'] = df['target'].apply(lambda x: str(x.replace('R$ ', '')))
+	df['target'] = df['target'].apply(lambda x: str(x.replace(',', '.')))
 	
 	return df
 
@@ -100,10 +101,10 @@ def print_header():
 	#formata e imprime o cabeçalho
     print('{:<16} {:<16} {:<16} {:<19} {:<16} {:<20}'.format(*HEADER))
     #imprime linha com 60 '-'
-    print('-'*60)
+    print('-'*95)
 
 def print_linha(linha):
-        print('{:<16} {:<16} {:<16} {:<19.2f} {:<16} {:<20}'.format(*linha))
+        print('{:<16} {:<16} {:<16.2f} {:<19.2f} {:<16.2f} {:<20}'.format(*linha))
 	
 
 def process_ticker(bloom_df, eleven_df):
@@ -147,8 +148,12 @@ def busca_ticker(ticker, df):
 
 #calcula o upside. Recebe preço atual e target
 def calcula_upside(atual, target):
-    atual = float(atual)
-    target = float(target)
+    atual = str(atual)
+    target = str(target)
+
+    
+    atual = float(atual.replace(',', '.'))
+    target = float(target.replace(',', '.'))
 
     upside = (target/atual) - 1 
         
