@@ -149,6 +149,9 @@ def busca_ticker(ticker, df):
 
 #calcula o upside. Recebe preço atual e target
 def calcula_upside(atual, target):
+    if target == 'Sob Revisão':
+        return 0
+    
     atual = str(atual)
     target = str(target)
     
