@@ -18,9 +18,11 @@ COLUMN_NAME_BLOOMBERG = ['ticker', 'target', 'consenso', 'qtdInst', 'qtdCompra',
 #cordenada data arquivo eleven
 cord_date = '108.208,47.969,134.238,117.876'
 
+cord_page1 = '105.977,35.326,131.263,132.007'
 cord_page2 = '103.999,35.0,751.018,563.771' 
 cord_page3 = '43.001,27.0,801.575,567.67'
 cord_page4 = '43.001,27.0,801.575,567.67'
+
 
 
 
@@ -45,42 +47,49 @@ def parse_bloomberg(excel_file):
 
 
 def read_page_eleven(pdf_file, page, cordenadas):
-	# chamada ao tabula-java
-	subprocess.call(
+    # chamada ao tabula-java
+    subprocess.call(
             "java -jar ./tabula-1.0.3-jar-with-dependencies.jar -p " + page + " -a " + cordenadas + " -o saida.csv eleven.pdf", shell=True)
-        #Lê página do csv de saída
-	df = pd.read_csv("saida.csv", sep=",", encoding='cp1252')
+    #Lê página do csv de saída
+    df = pd.read_csv("saida.csv", sep=",", encoding='cp1252')
 
-	# deleta linhas onde todos os valores são NaN
-	df = df.dropna(how='all')
+    if page == '1':
+        return df
 
-	#mantem apenas colunas com ao menos a metade(df.shape[0]/2) de linhas não-nan
-	df = df.dropna(thresh=df.shape[0]/2, axis=1)
+    # deleta linhas onde todos os valores são NaN
+    df = df.dropna(how='all')
 
-        #Deleta linhas onde a segunda coluna é nan
-	df = df.dropna(subset=[df.columns[1]])
+    #mantem apenas colunas com ao menos a metade(df.shape[0]/2) de linhas não-nan
+    df = df.dropna(thresh=df.shape[0]/2, axis=1)
 
-        #deleta coluna companhia
-	df = df.drop(df.columns[0], axis=1)
+    #Deleta linhas onde a segunda coluna é nan
+    df = df.dropna(subset=[df.columns[1]])
 
-	df.columns = COLUMN_NAME_ELEVEN
+    #deleta coluna companhia
+    df = df.drop(df.columns[0], axis=1)
 
-	# faz um replace na coluna target e retira o R$
-	df['target'] = df['target'].apply(lambda x: str(x.replace('R$ ', '')))
-	df['target'] = df['target'].apply(lambda x: str(x.replace(',', '.')))
+    df.columns = COLUMN_NAME_ELEVEN
+
+    # faz um replace na coluna target e retira o R$
+    df['target'] = df['target'].apply(lambda x: str(x.replace('R$ ', '')))
+    df['target'] = df['target'].apply(lambda x: str(x.replace(',', '.')))
 	
-	return df
+    return df
 
 def parse_eleven(pdf_file):
 
+    #pega a data
+    date = read_page_eleven(ELEVEN_ARQ, "1", cord_page1).columns[0]
+    
     dfP2 = read_page_eleven(ELEVEN_ARQ, "2", cord_page2)
     dfP3 = read_page_eleven(ELEVEN_ARQ, "3", cord_page2)
     dfP4 = read_page_eleven(ELEVEN_ARQ, "4", cord_page2)
 
     # unindo os 3 dataFrame em um
     df = pd.concat([dfP2, dfP3, dfP4])
-    
-    return df
+
+    result = [date, df]
+    return result
 
 def print_table(ativo1_bloom, ativo2_bloom, ativo1_elev, ativo2_elev, ticker1, ticker2):
     
@@ -110,11 +119,13 @@ def print_linha(linha):
 
 def process_ticker(bloom_df, eleven_df):
     
-   # try:
+    try:
         ticker1 = input("Digite o ticker 1:")
         preco1 = input("Digite o preço atual:")
+        print("\n")
         ticker2 = input("Digite o ticker 2:")
         preco2 = input("Digite o preço atual:")
+        print("\n")
 
         bloom1 = busca_ticker(ticker1, bloom_df)
         bloom2 = busca_ticker(ticker2, bloom_df)      
@@ -132,9 +143,9 @@ def process_ticker(bloom_df, eleven_df):
         print_table(bloom1, bloom2, elev1, elev2, ticker1, ticker2)
         process_ticker(bloom_df, eleven_df)
 
-    #except:
-            #print ("Não foi possível encontrar os ticker solicitado. Por favor, tente novamente");
-   #         process_ticker(bloom_df, eleven_df)
+    except:
+        print ("Não foi possível encontrar os ticker solicitado. Por favor, tente novamente");
+        process_ticker(bloom_df, eleven_df)
 
 def busca_ticker(ticker, df):
         #maiúcuslo
@@ -167,13 +178,21 @@ def start():
         bloomberg = parse_bloomberg(BLOOMBERG_ARQ)
         bloom_date = bloomberg[0]
         bloom_df = bloomberg[1]
-        eleven_df = parse_eleven(ELEVEN_ARQ)
-        process_ticker(bloom_df, eleven_df)
-     
+        
+        eleven = parse_eleven(ELEVEN_ARQ)
+        eleven_date = eleven[0]
+        eleven_df = eleven[1]
+
+        print('Data Bloomberg: ' + str(bloom_date))
+        print('\n')
+        print('Data Eleven: ' + str(eleven_date))
+        print('\n')  
+        
+        process_ticker(bloom_df, eleven_df)    
         
 start()
 
-#df = read_page_eleven(ELEVEN_ARQ, "3", cord_page3)
+#df = read_page_eleven(ELEVEN_ARQ, "1", cord_page1)
 
     
 
