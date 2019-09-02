@@ -3,13 +3,17 @@
 import pandas as pd
 import subprocess
 
+#Recomendação XP
+#https://researchxp1.s3-sa-east-1.amazonaws.com/Guia+de+recomenda%C3%A7%C3%B5es+-+A%C3%A7oes+-+Research+XP+-+30.08.2019.xlsx
+
 
 # caminho do arquivo blomberg
 BLOOMBERG_ARQ = 'consenso.xlsx'
 ELEVEN_ARQ = 'eleven.pdf'
+XP_ARQ = 'xp.xlsx'
 
 #cabeçalho da tabela de resultados
-HEADER = ['TICKER ', 'ELEVEN ', 'UPSIDE', 'BLOOMBERG ', 'UPSIDE', 'OUTRAS']
+HEADER = ['TICKER ', 'ELEVEN ', 'UPSIDE', 'BLOOMBERG ', 'UPSIDE', 'OUTRAS C/N/V']
 
 # nome das colunas do df final eleven
 COLUMN_NAME_ELEVEN = ['ticker', 'atual', 'target', 'precoLimite', 'recomendacao', 'risco', 'qualidade', 'indice', 'upsideBack']
@@ -24,6 +28,12 @@ cord_page3 = '43.001,27.0,801.575,567.67'
 cord_page4 = '43.001,27.0,801.575,567.67'
 
 
+def parse_xp(excel_file)
+    df = pd.read_excel(XP_ARQ)
+    df = df.drop(df.index[0:2])
+    
+    result = df
+    return result
 
 
 # retorna a data do consenso e um dataFrame com os dados tratados da Eleven.
@@ -190,9 +200,9 @@ def start():
         
         process_ticker(bloom_df, eleven_df)    
         
-start()
+#start()
 
-#df = read_page_eleven(ELEVEN_ARQ, "1", cord_page1)
+df = read_page_eleven(ELEVEN_ARQ, "1", cord_page1)
 
     
 
