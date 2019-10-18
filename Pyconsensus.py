@@ -14,7 +14,7 @@ RESULTADO_ELEV_ARQ = 'resultadosEleven.pdf'
 XP_ARQ = 'xp.xlsx'
 
 #cabeçalho da tabela de resultados
-HEADER = ['TICKER ', 'ELEVEN ', 'UPSIDE', 'BLOOMBERG ', 'UPSIDE', 'XP', 'UPSIDE', 'OUTRAS C/N/V']
+HEADER = ['TICKER ', 'ELEVEN ', 'UPSIDE', 'BLOOMBERG ', 'UPSIDE', 'XP', 'UPSIDE', 'OUTRAS C/N/V', 'BALANÇO']
 
 # nome das colunas do df final eleven
 COLUMN_NAME_ELEVEN = ['ticker', 'atual', 'target', 'precoLimite', 'recomendacao', 'risco', 'qualidade', 'indice', 'upsideBack']
@@ -170,7 +170,7 @@ def print_table(ativo1_bloom, ativo2_bloom, ativo1_elev, ativo2_elev, ativo1_xp,
     linha1.append(ativo1_xp['target'].values[0])
     linha1.append(ativo1_xp['upside'].values[0])
     linha1.append(outras1)
-    linha1.append(resultado1)
+    linha1.append(resultado1['resultado'].values[0])
 
     linha2.append(ativo2_elev['target'].values[0])
     linha2.append(ativo2_elev['upside'].values[0])
@@ -179,7 +179,7 @@ def print_table(ativo1_bloom, ativo2_bloom, ativo1_elev, ativo2_elev, ativo1_xp,
     linha2.append(ativo2_xp['target'].values[0])
     linha2.append(ativo2_xp['upside'].values[0])
     linha2.append(outras2)
-    linha2.append(resultado2)
+    linha2.append(resultado2['resultado'].values[0])
 	
     print_header()
     print_linha(linha1)
@@ -189,12 +189,12 @@ def print_table(ativo1_bloom, ativo2_bloom, ativo1_elev, ativo2_elev, ativo1_xp,
 
 def print_header():
 	#formata e imprime o cabeçalho
-    print('{:<16} {:<16} {:<16} {:<19} {:<16} {:<16} {:<16} {:<20}'.format(*HEADER))
+    print('{:<16} {:<16} {:<16} {:<19} {:<16} {:<16} {:<16} {:<20} {:<25}'.format(*HEADER))
     #imprime linha com 60 '-'
-    print('-'*135)
+    print('-'*170)
 
 def print_linha(linha):
-        print('{:<16} {:<16} {:<16.2f} {:<19.2f} {:<16.2f} {:<16} {:<16.2f} {:<20} {:<100}'.format(*linha))
+        print('{:<16} {:<16} {:<16.2f} {:<19.2f} {:<16.2f} {:<16} {:<16.2f} {:<20} {:<25}'.format(*linha))
         print('\n')
 	
 
@@ -209,7 +209,7 @@ def process_ticker(bloom_df, eleven_df, xp_df, resultado_df):
         print("\n")
 
 
-        resultado1 = busca_ticker(ticker2, resultado_df)
+        resultado1 = busca_ticker(ticker1, resultado_df)
         resultado2 = busca_ticker(ticker2, resultado_df)
 
         bloom1 = busca_ticker(ticker1, bloom_df)
