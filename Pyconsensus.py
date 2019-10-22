@@ -14,7 +14,7 @@ RESULTADO_ELEV_ARQ = 'resultadosEleven.pdf'
 XP_ARQ = 'xp.xlsx'
 
 #cabeçalho da tabela de resultados
-HEADER = ['TICKER ', 'ELEVEN ', 'UPSIDE', 'BLOOMBERG ', 'UPSIDE', 'XP', 'UPSIDE', 'OUTRAS C/N/V', 'BALANÇO']
+HEADER = ['TICKER ', 'ELEVEN ', 'UPSIDE', 'BLOOMBERG ', 'UPSIDE', 'XP', 'UPSIDE', 'OUTRAS C/N/V']
 
 # nome das colunas do df final eleven
 COLUMN_NAME_ELEVEN = ['ticker', 'atual', 'target', 'precoLimite', 'recomendacao', 'risco', 'qualidade', 'indice', 'upsideBack']
@@ -43,6 +43,9 @@ def parse_xp(excel_file):
     df = df.drop(df.index[0:3])
     #deleta as colunas inuteis
     df = df.drop(df.columns[[0,2,3,4,6,8,9,10,11,12,13,14,15,16]], axis=1)
+    #deleta as colunas maiores que 3
+    df = df.drop(df.columns[3:], axis=1)
+    #df = df.drop(df.columns[[0,2,3,5,7,8,9,10,11,12,13,14,15]], axis=1)
     #rename nas colunas do data frame
     df.columns = COLUMN_NAME_XP
 
@@ -170,7 +173,7 @@ def print_table(ativo1_bloom, ativo2_bloom, ativo1_elev, ativo2_elev, ativo1_xp,
     linha1.append(ativo1_xp['target'].values[0])
     linha1.append(ativo1_xp['upside'].values[0])
     linha1.append(outras1)
-    linha1.append(resultado1['resultado'].values[0])
+    linha1.append(resultado1)
 
     linha2.append(ativo2_elev['target'].values[0])
     linha2.append(ativo2_elev['upside'].values[0])
@@ -179,7 +182,7 @@ def print_table(ativo1_bloom, ativo2_bloom, ativo1_elev, ativo2_elev, ativo1_xp,
     linha2.append(ativo2_xp['target'].values[0])
     linha2.append(ativo2_xp['upside'].values[0])
     linha2.append(outras2)
-    linha2.append(resultado2['resultado'].values[0])
+    linha2.append(resultado2)
 	
     print_header()
     print_linha(linha1)
@@ -189,12 +192,12 @@ def print_table(ativo1_bloom, ativo2_bloom, ativo1_elev, ativo2_elev, ativo1_xp,
 
 def print_header():
 	#formata e imprime o cabeçalho
-    print('{:<16} {:<16} {:<16} {:<19} {:<16} {:<16} {:<16} {:<20} {:<25}'.format(*HEADER))
+    print('{:<16} {:<16} {:<16} {:<19} {:<16} {:<16} {:<16} {:<20}'.format(*HEADER))
     #imprime linha com 60 '-'
-    print('-'*170)
+    print('-'*135)
 
 def print_linha(linha):
-        print('{:<16} {:<16} {:<16.2f} {:<19.2f} {:<16.2f} {:<16} {:<16.2f} {:<20} {:<25}'.format(*linha))
+        print('{:<16} {:<16} {:<16.2f} {:<19.2f} {:<16.2f} {:<16} {:<16.2f} {:<20} {:<100}'.format(*linha))
         print('\n')
 	
 
@@ -207,7 +210,6 @@ def process_ticker(bloom_df, eleven_df, xp_df, resultado_df):
         ticker2 = input("Digite o ticker 2:")
         preco2 = input("Digite o preço atual:")
         print("\n")
-
 
         resultado1 = busca_ticker(ticker1, resultado_df)
         resultado2 = busca_ticker(ticker2, resultado_df)
