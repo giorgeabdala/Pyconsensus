@@ -19,7 +19,8 @@ HEADER = ['TICKER ', 'ELEVEN ', 'UPSIDE', 'BLOOMBERG ', 'UPSIDE', 'XP', 'UPSIDE'
 # nome das colunas do df final eleven
 COLUMN_NAME_ELEVEN = ['ticker', 'atual', 'target', 'precoLimite', 'recomendacao', 'risco', 'qualidade', 'indice', 'upsideBack']
 COLUMN_NAME_BLOOMBERG = ['ticker', 'target', 'consenso', 'qtdInst', 'qtdCompra', 'qtdNeutro', 'qtdVenda']
-COLUMN_NAME_XP = ['ticker', 'consenso', 'target']
+#COLUMN_NAME_XP = ['ticker', 'consenso', 'target']
+COLUMN_NAME_XP = ['ticker', 'target']
 COLUMN_NAME_RESULTADO_ELEVEN = ['ticker', 'resultado', 'teleconferencia']
 
 #cordenada data arquivo eleven
@@ -28,7 +29,7 @@ cord_date = '108.208,47.969,134.238,117.876'
 cord_page1 = '105.977,35.326,131.263,132.007'
 cord_page2 = '103.999,35.0,751.018,563.771' 
 #cord_page3 = '43.001,27.0,801.575,567.67'
-#cord_page4 = '43.001,27.0,801.575,567.67'
+#cord_page4 = '43.001,27.0,801.575,567.6'7c
 
 
 #cordenada resultados eleven
@@ -42,7 +43,7 @@ def parse_xp(excel_file):
     #deleta as 3 primeiras linhas
     df = df.drop(df.index[0:3])
     #deleta as colunas inuteis
-    df = df.drop(df.columns[[0,2,3,4,6,8,9,10,11,12,13,14,15,16]], axis=1)
+    df = df.drop(df.columns[[0,2,4,6,8,9]], axis=1)
     #deleta as colunas maiores que 3
     df = df.drop(df.columns[3:], axis=1)
     #df = df.drop(df.columns[[0,2,3,5,7,8,9,10,11,12,13,14,15]], axis=1)
@@ -50,6 +51,31 @@ def parse_xp(excel_file):
     df.columns = COLUMN_NAME_XP
 
     return df
+
+def parse_xp2(excel_file):
+    #carrega arquivo XP excel
+    df = pd.read_excel(excel_file)
+    #deleta as primeiras linhas
+    df = df.drop(df.index[0:1])
+    #define a primeira linha como titulo da coluna
+    df.columns = df.loc[1]
+    #guarda apenas as colunas Ticker e Preço alvo
+    df = df[['Ticker', 'Preço-Alvo']]
+    df.columns = COLUMN_NAME_XP
+    return df
+
+
+    
+    #deleta as colunas inuteis
+    df = df.drop(df.columns[[0,2,4,6,8,9]], axis=1)
+    #deleta as colunas maiores que 3
+    df = df.drop(df.columns[3:], axis=1)
+    #df = df.drop(df.columns[[0,2,3,5,7,8,9,10,11,12,13,14,15]], axis=1)
+    #rename nas colunas do data frame
+    df.columns = COLUMN_NAME_XP
+
+    return df
+    
 
 
 # retorna a data do consenso e um dataFrame com os dados tratados da Eleven.
@@ -136,6 +162,10 @@ def read_page_result_eleven(pdf_file, page, cord):
     #deleta coluna companhia
     df = df.drop(df.columns[0], axis=1)
 
+    #deleta columna Dvulgação caso tenha mais que 3 colunas
+    if df.columns.size == 4:
+        df = df.drop(df.columns[2], axis=1)
+
     df.columns = COLUMN_NAME_RESULTADO_ELEVEN
 
     return df
@@ -146,9 +176,9 @@ def parse_result_eleven(pdf_file):
      dfP2 = read_page_result_eleven(pdf_file, "2", cord_result_other)
      dfP3 = read_page_result_eleven(pdf_file, "3", cord_result_other)
      dfP4 = read_page_result_eleven(pdf_file, "4", cord_result_other)
-     dfP5 = read_page_result_eleven(pdf_file, "5", cord_result_other)
+     #dfP5 = read_page_result_eleven(pdf_file, "5", cord_result_other)
 
-     result = pd.concat([dfP1, dfP2, dfP3, dfP4, dfP5])
+     result = pd.concat([dfP1, dfP2, dfP3, dfP4])
 
      return result
 
@@ -173,7 +203,7 @@ def print_table(ativo1_bloom, ativo2_bloom, ativo1_elev, ativo2_elev, ativo1_xp,
     linha1.append(ativo1_xp['target'].values[0])
     linha1.append(ativo1_xp['upside'].values[0])
     linha1.append(outras1)
-    linha1.append(resultado1)
+    linha1.append(resultado1['resultado'].values[0])
 
     linha2.append(ativo2_elev['target'].values[0])
     linha2.append(ativo2_elev['upside'].values[0])
@@ -182,7 +212,7 @@ def print_table(ativo1_bloom, ativo2_bloom, ativo1_elev, ativo2_elev, ativo1_xp,
     linha2.append(ativo2_xp['target'].values[0])
     linha2.append(ativo2_xp['upside'].values[0])
     linha2.append(outras2)
-    linha2.append(resultado2)
+    linha2.append(resultado2['resultado'].values[0])
 	
     print_header()
     print_linha(linha1)
@@ -281,7 +311,7 @@ def start():
         eleven_date = eleven[0]
         eleven_df = eleven[1]
 
-        xp_df = parse_xp(XP_ARQ)
+        xp_df = parse_xp2(XP_ARQ)
 
         resultado_df = parse_result_eleven(RESULTADO_ELEV_ARQ)    
 
