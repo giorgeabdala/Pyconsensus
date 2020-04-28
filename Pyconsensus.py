@@ -13,6 +13,11 @@ ELEVEN_ARQ = 'eleven.pdf'
 RESULTADO_ELEV_ARQ = 'resultadosEleven.pdf'
 XP_ARQ = 'xp.xlsx'
 
+NECTON_ARQ = "necton.xlsx"
+
+
+
+
 #cabeçalho da tabela de resultados
 HEADER = ['TICKER ', 'ELEVEN ', 'UPSIDE', 'BLOOMBERG ', 'UPSIDE', 'XP', 'UPSIDE', 'OUTRAS C/N/V']
 
@@ -22,6 +27,10 @@ COLUMN_NAME_BLOOMBERG = ['ticker', 'target', 'consenso', 'qtdInst', 'qtdCompra',
 #COLUMN_NAME_XP = ['ticker', 'consenso', 'target']
 COLUMN_NAME_XP = ['ticker', 'target']
 COLUMN_NAME_RESULTADO_ELEVEN = ['ticker', 'resultado', 'teleconferencia']
+COLUMN_NAME_NECTON = ['equity', 'nome', 'setor', 'ticker', 'hoje', '∆% 2020', '∆% 12 meses', 'target', 'upside', 'qtdAcoes', 'freefloat', 'Beta 2Y', 'Volatil. 12m', 'Volume 1D (R$ m)',
+                      'BTC ÷ Free Float', 'Taxa Aluguel', 'p/vpa', 'p/l', 'evebtda', 'ROL 12m', 'ebtda', 'Mg. EBITDA', 'lpa', 'Mg, Líquida', 'dl', 'dl/ebtda', 'Pat. Líquido',
+                      'WACC', 'dy', 'Payout', 'roe']
+
 
 #cordenada data arquivo eleven
 cord_date = '108.208,47.969,134.238,117.876'
@@ -35,6 +44,29 @@ cord_page2 = '103.999,35.0,751.018,563.771'
 #cordenada resultados eleven
 cord_result1 = '196.0,40.0,706.178,426.724'
 cord_result_other = '56.149,104.49,697.219,491.958'
+
+
+def parse_necton(excel_file):
+    #carrega arquivo XP excel
+    df = pd.read_excel(excel_file, sheet_name='Planilha11')
+    #Dá nome para as colunas. Usa o vetor definido no inicio do sript
+    df.columns = COLUMN_NAME_NECTON
+    #deleta as linhas vazias da tabela
+    df = df.drop(df.index[0:13])
+
+    return df
+
+
+#recebe o ebtda, a dívida liquida e o evEbda para fazer calculo
+#do valor do mercado
+def calc_ValorMercado(ebtda, dl, evEbtda):
+    vm = evEbtda*ebtda
+    vm = vm - dl
+            
+    return vm
+
+
+
 
 
 def parse_xp(excel_file):
@@ -267,7 +299,7 @@ def process_ticker(bloom_df, eleven_df, xp_df, resultado_df):
         process_ticker(bloom_df, eleven_df, xp_df, resultado_df)
 
   #  except:
-        print ("Não foi possível encontrar os ticker solicitado. Por favor, tente novamente");
+        print ("Não foi possível encontrar os ticker solicitado. Por favor, tente novamente")
         process_ticker(bloom_df, eleven_df, xp_df, resultado_df)
 
 def add_upside_col(df, preco):
@@ -302,7 +334,7 @@ def calcula_upside(atual, target):
     return upside * 100
     
 
-def start():
+def start_consenso():
         bloomberg = parse_bloomberg(BLOOMBERG_ARQ)
         bloom_date = bloomberg[0]
         bloom_df = bloomberg[1]
@@ -320,7 +352,94 @@ def start():
         print('Data Eleven: ' + str(eleven_date))
         print('\n')  
         
-        process_ticker(bloom_df, eleven_df, xp_df, resultado_df)    
+        process_ticker(bloom_df, eleven_df, xp_df, resultado_df)
+
+
+def start_calc_preco():
+    try:
+        print('\n')
+        ticker = input("ticker: ")
+        evebtda = float(input("ev/ebtda projetado: "))
+        ebtda_upside = int(input("Crescimento projetado do ebtda(em %): "))
+        margem = int(input("Margem de segurança(em %): "))
+
+        df_necton = parse_necton(NECTON_ARQ)
+        #substitui todos os caracteres - por 0000
+        df_necton = df_necton.replace('-', 0.00, regex=True)
+        df_necton = df_necton.replace(' ', 0.00, regex=True)
+
+    
+        ativo = busca_ticker(ticker, df_necton)
+
+        ebtda = ativo['ebtda'].values[0]
+        dl = ativo['dl'].values[0]
+        qtde_acoes = ativo['qtdAcoes'].values[0]
+
+        #calcula o ebtda com crescimento
+        ebtda = ebtda + (ebtda_upside/100 * ebtda)
+        #pega o valor de mercado projetado
+        vm = calc_ValorMercado(ebtda, dl, evebtda)
+
+        #preço justo da ação
+        preco_justo = vm/qtde_acoes
+
+        #preço com margem de segurança
+        preco_margem = preco_justo - (margem/100 * preco_justo)
+
+        print('\n')  
+        print('Preço Justo: ' + "     {:12.2f}".format(preco_justo))
+        print('Preço com Margem: ' + "{:12.2f}".format(preco_margem))
+       
+        print_indicadores(ativo)
+
+    except:
+        print("Ocorreu um erro...Reiniciando")
+        start_calc_preco()
+        
+    start_calc_preco()
+
+
+#recebe uma linha necton
+def print_indicadores(ativo):
+     #pega os indicadores fundamentalistas
+    vpa = ativo['p/vpa'].values[0]
+    pl = ativo['p/l'].values[0]
+    evebtatual = ativo['evebtda'].values[0]
+    mgebtda = ativo['Mg. EBITDA'].values[0]
+    lpa = ativo['lpa'].values[0]
+    dlebtda = ativo['dl/ebtda'].values[0]
+    dy = ativo['dy'].values[0] * 100
+    roe = ativo['roe'].values[0] * 100
+
+    print('\n')  
+    print("INDICADORES FUNDAMENTALISTAS")
+    print('P/VPA: ' + "{:12.2f}".format(vpa))
+    print('P/L: ' + "      {:12.2f}".format(pl))
+    print('EV/EBTDA:' + "  {:12.2f}".format(evebtatual))
+    print('Mg. EBITDA:' + "{:12.2f}".format(mgebtda))
+    print('LPA:' + "{:12.2f}".format(lpa))
+    print('DL/EBTDA:' + "  {:12.2f}".format(dlebtda))
+    print('DY:' + "        {:12.2f}%".format(dy))
+    print('ROE:' + "       {:12.2f}%".format(roe))
+    
+    print('\n \n')
+
+    
+
+def start():
+    print('\n')  
+    print("1 - Consenso de Mercado")
+    print("2 - Calculo de Valor Justo (ev/ebtda)")
+    print('\n')  
+    menu = input("Escolha um número de menu: ")
+
+    if menu == 1:
+        start_consenso()
+    else:
+        start_calc_preco()
+    
+    
+    
         
 start()
 
