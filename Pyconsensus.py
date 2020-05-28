@@ -1,33 +1,33 @@
-# requisitos: panda, xlrd,
+# requisitos: panda, xlrd, requests
 #pd.set_option('display.max_columns', 15)
 import pandas as pd
 import subprocess
+import requests 
 
 #Recomendação XP
 #https://researchxp1.s3-sa-east-1.amazonaws.com/Guia+de+recomenda%C3%A7%C3%B5es+-+A%C3%A7oes+-+Research+XP+-+30.08.2019.xlsx
 
 
 # caminho do arquivo blomberg
-BLOOMBERG_ARQ = 'consenso.xlsx'
 ELEVEN_ARQ = 'eleven.pdf'
-RESULTADO_ELEV_ARQ = 'resultadosEleven.pdf'
+
+
 XP_ARQ = 'xp.xlsx'
+XP_URL = "https://researchxp1.s3-sa-east-1.amazonaws.com/Guia+de+recomenda%C3%A7%C3%B5es+-+A%C3%A7oes+-+Research+XP+-+30.08.2019.xlsx"
 
 NECTON_ARQ = "necton.xlsx"
-
-
+NECTON_URL = "https://apibackoffice.necton.com.br/api/archive/24a55bad-13d2-4686-bbbc-daaa57c7aca9"
 
 
 #cabeçalho da tabela de resultados
-HEADER = ['TICKER ', 'ELEVEN ', 'UPSIDE', 'BLOOMBERG ', 'UPSIDE', 'XP', 'UPSIDE', 'OUTRAS C/N/V']
+HEADER = ['TICKER ', 'ELEVEN ', 'UPSIDE', 'BLOOMBERG ', 'UPSIDE', 'XP', 'UPSIDE']
 
 # nome das colunas do df final eleven
 COLUMN_NAME_ELEVEN = ['ticker', 'atual', 'target', 'precoLimite', 'recomendacao', 'risco', 'qualidade', 'indice', 'upsideBack']
 COLUMN_NAME_BLOOMBERG = ['ticker', 'target', 'consenso', 'qtdInst', 'qtdCompra', 'qtdNeutro', 'qtdVenda']
 #COLUMN_NAME_XP = ['ticker', 'consenso', 'target']
 COLUMN_NAME_XP = ['ticker', 'target']
-COLUMN_NAME_RESULTADO_ELEVEN = ['ticker', 'resultado', 'teleconferencia']
-COLUMN_NAME_NECTON = ['equity', 'nome', 'setor', 'ticker', 'hoje', '∆% 2020', '∆% 12 meses', 'target', 'upside', 'qtdAcoes', 'freefloat', 'Beta 2Y', 'Volatil. 12m', 'Volume 1D (R$ m)',
+COLUMN_NAME_NECTON = ['equity', 'nome', 'setor', 'ticker', 'atual', '∆% 2020', '∆% 12 meses', 'target', 'upside', 'qtdAcoes', 'freefloat', 'Beta 2Y', 'Volatil. 12m', 'Volume 1D (R$ m)',
                       'BTC ÷ Free Float', 'Taxa Aluguel', 'p/vpa', 'p/l', 'evebtda', 'ROL 12m', 'ebtda', 'Mg. EBITDA', 'lpa', 'Mg, Líquida', 'dl', 'dl/ebtda', 'Pat. Líquido',
                       'WACC', 'dy', 'Payout', 'roe']
 
@@ -46,15 +46,31 @@ cord_result1 = '196.0,40.0,706.178,426.724'
 cord_result_other = '56.149,104.49,697.219,491.958'
 
 
+
+def baixar_arquivo(url, endereco):
+    resposta = requests.get(url)
+    if resposta.status_code == requests.codes.OK:
+        with open(endereco, 'wb') as novo_arquivo:
+                novo_arquivo.write(resposta.content)
+        print("Download finalizado. Arquivo salvo em: {}".format(endereco))
+    else:
+        resposta.raise_for_status()
+
+
 def parse_necton(excel_file):
     #carrega arquivo XP excel
     df = pd.read_excel(excel_file, sheet_name='Planilha11')
+
+    #pega a data 
+    date = df.iloc[0,1]
     #Dá nome para as colunas. Usa o vetor definido no inicio do sript
     df.columns = COLUMN_NAME_NECTON
     #deleta as linhas vazias da tabela
     df = df.drop(df.index[0:13])
 
-    return df
+    result = [date, df]
+
+    return result
 
 
 #recebe o ebtda, a dívida liquida e o evEbda para fazer calculo
@@ -64,9 +80,6 @@ def calc_ValorMercado(ebtda, dl, evEbtda):
     vm = vm - dl
             
     return vm
-
-
-
 
 
 def parse_xp(excel_file):
@@ -109,25 +122,6 @@ def parse_xp2(excel_file):
     return df
     
 
-
-# retorna a data do consenso e um dataFrame com os dados tratados da Eleven.
-# recebe o caminho do arquivo excel
-def parse_bloomberg(excel_file):
-    # carrega o arquivo excel 
-    df = pd.read_excel(excel_file)
-    # pega a data do arquivo
-    date = df.iloc[4, 1]
-    # deleta as 9 priemiras linhas
-    df = df.drop(df.index[0:9])
-    # deleta as colunas 0,2 e 5 (Unamed, Empresa, preço e Upside/Downside)
-    df = df.drop(df.columns[[0, 2, 3, 5]], axis=1)
-    # renomeado colunas
-    df.columns = COLUMN_NAME_BLOOMBERG
-    # faz um replace na coluna ticker e retira o ' BS'
-    df['ticker'] = df['ticker'].str.replace(' BS', '')
-
-    result = [date, df]
-    return result
 
 
 def read_page_eleven(pdf_file, page, cordenadas):
@@ -175,55 +169,13 @@ def parse_eleven(pdf_file):
     result = [date, df]
     return result
 
-def read_page_result_eleven(pdf_file, page, cord):
-     # chamada ao tabula-java
-    subprocess.call(
-            "java -jar ./tabula-1.0.3-jar-with-dependencies.jar -p " + page + " -a " + cord + " -o saida.csv " + RESULTADO_ELEV_ARQ, shell=True)
-    #Lê página do csv de saída
-    df = pd.read_csv("saida.csv", sep=",", encoding='cp1252')
-
-    # deleta linhas onde todos os valores são NaN
-    df = df.dropna(how='all')
-
-    #mantem apenas colunas com ao menos a metade(df.shape[0]/2) de linhas não-nan
-    df = df.dropna(thresh=df.shape[0]/2, axis=1)
-
-    #Deleta linhas onde a segunda coluna é nan
-    df = df.dropna(subset=[df.columns[1]])
-
-    #deleta coluna companhia
-    df = df.drop(df.columns[0], axis=1)
-
-    #deleta columna Dvulgação caso tenha mais que 3 colunas
-    if df.columns.size == 4:
-        df = df.drop(df.columns[2], axis=1)
-
-    df.columns = COLUMN_NAME_RESULTADO_ELEVEN
-
-    return df
-
-def parse_result_eleven(pdf_file):
-     dfP1 = read_page_result_eleven(pdf_file, "1", cord_result1)
-     
-     dfP2 = read_page_result_eleven(pdf_file, "2", cord_result_other)
-     dfP3 = read_page_result_eleven(pdf_file, "3", cord_result_other)
-     dfP4 = read_page_result_eleven(pdf_file, "4", cord_result_other)
-     #dfP5 = read_page_result_eleven(pdf_file, "5", cord_result_other)
-
-     result = pd.concat([dfP1, dfP2, dfP3, dfP4])
-
-     return result
 
 
-
-
-    
-
-def print_table(ativo1_bloom, ativo2_bloom, ativo1_elev, ativo2_elev, ativo1_xp, ativo2_xp, ticker1, ticker2, resultado1, resultado2):
+def print_table(ativo1_bloom, ativo2_bloom, ativo1_elev, ativo2_elev, ativo1_xp, ativo2_xp, ticker1, ticker2):
     
     #monta string das outras instituições
-    outras1 = str(ativo1_bloom['qtdCompra'].values[0]) + '/' + str(ativo1_bloom['qtdNeutro'].values[0]) + '/'+ str(ativo1_bloom['qtdVenda'].values[0])
-    outras2 = str(ativo2_bloom['qtdCompra'].values[0]) + '/' + str(ativo2_bloom['qtdNeutro'].values[0]) + '/'+ str(ativo2_bloom['qtdVenda'].values[0])
+    #outras1 = str(ativo1_bloom['qtdCompra'].values[0]) + '/' + str(ativo1_bloom['qtdNeutro'].values[0]) + '/'+ str(ativo1_bloom['qtdVenda'].values[0])
+   # outras2 = str(ativo2_bloom['qtdCompra'].values[0]) + '/' + str(ativo2_bloom['qtdNeutro'].values[0]) + '/'+ str(ativo2_bloom['qtdVenda'].values[0])
 
     linha1 = [ticker1]
     linha2 = [ticker2]
@@ -234,8 +186,7 @@ def print_table(ativo1_bloom, ativo2_bloom, ativo1_elev, ativo2_elev, ativo1_xp,
     linha1.append(ativo1_bloom['upside'].values[0])
     linha1.append(ativo1_xp['target'].values[0])
     linha1.append(ativo1_xp['upside'].values[0])
-    linha1.append(outras1)
-    linha1.append(resultado1['resultado'].values[0])
+
 
     linha2.append(ativo2_elev['target'].values[0])
     linha2.append(ativo2_elev['upside'].values[0])
@@ -243,8 +194,6 @@ def print_table(ativo1_bloom, ativo2_bloom, ativo1_elev, ativo2_elev, ativo1_xp,
     linha2.append(ativo2_bloom['upside'].values[0])
     linha2.append(ativo2_xp['target'].values[0])
     linha2.append(ativo2_xp['upside'].values[0])
-    linha2.append(outras2)
-    linha2.append(resultado2['resultado'].values[0])
 	
     print_header()
     print_linha(linha1)
@@ -254,18 +203,18 @@ def print_table(ativo1_bloom, ativo2_bloom, ativo1_elev, ativo2_elev, ativo1_xp,
 
 def print_header():
 	#formata e imprime o cabeçalho
-    print('{:<16} {:<16} {:<16} {:<19} {:<16} {:<16} {:<16} {:<20}'.format(*HEADER))
+    print('{:<16} {:<16} {:<16} {:<19} {:<16} {:<16} {:<16}'.format(*HEADER))
     #imprime linha com 60 '-'
     print('-'*135)
 
 def print_linha(linha):
-        print('{:<16} {:<16} {:<16.2f} {:<19.2f} {:<16.2f} {:<16} {:<16.2f} {:<20} {:<100}'.format(*linha))
+        print('{:<16} {:<16} {:<16.2f} {:<19.2f} {:<16.2f} {:<16} {:<16.2f}'.format(*linha))
         print('\n')
 	
 
-def process_ticker(bloom_df, eleven_df, xp_df, resultado_df):
+def process_ticker(bloom_df, eleven_df, xp_df):
     
-  #  try:
+    try:
         ticker1 = input("Digite o ticker 1:")
         preco1 = input("Digite o preço atual:")
         print("\n")
@@ -273,8 +222,6 @@ def process_ticker(bloom_df, eleven_df, xp_df, resultado_df):
         preco2 = input("Digite o preço atual:")
         print("\n")
 
-        resultado1 = busca_ticker(ticker1, resultado_df)
-        resultado2 = busca_ticker(ticker2, resultado_df)
 
         bloom1 = busca_ticker(ticker1, bloom_df)
         bloom2 = busca_ticker(ticker2, bloom_df)      
@@ -295,12 +242,11 @@ def process_ticker(bloom_df, eleven_df, xp_df, resultado_df):
         xp1 = add_upside_col(xp1, preco1)
         xp2 = add_upside_col(xp2, preco2)
 
-        print_table(bloom1, bloom2, elev1, elev2, xp1, xp2, ticker1, ticker2, resultado1, resultado2)
-        process_ticker(bloom_df, eleven_df, xp_df, resultado_df)
-
-  #  except:
+        print_table(bloom1, bloom2, elev1, elev2, xp1, xp2, ticker1, ticker2)
+        process_ticker(bloom_df, eleven_df, xp_df)
+    except:
         print ("Não foi possível encontrar os ticker solicitado. Por favor, tente novamente")
-        process_ticker(bloom_df, eleven_df, xp_df, resultado_df)
+        process_ticker(bloom_df, eleven_df, xp_df)
 
 def add_upside_col(df, preco):
     df.loc[df.index[0], 'upside'] = calcula_upside(preco, df.loc[df.index[0],'target'])
@@ -335,28 +281,29 @@ def calcula_upside(atual, target):
     
 
 def start_consenso():
-        bloomberg = parse_bloomberg(BLOOMBERG_ARQ)
-        bloom_date = bloomberg[0]
-        bloom_df = bloomberg[1]
-        
+        #pega os daframe com os dados
+        bloomberg = parse_necton(NECTON_ARQ)
         eleven = parse_eleven(ELEVEN_ARQ)
-        eleven_date = eleven[0]
-        eleven_df = eleven[1]
 
+        eleven_df = eleven[1]
+        bloom_df = bloomberg[1]
         xp_df = parse_xp2(XP_ARQ)
 
-        resultado_df = parse_result_eleven(RESULTADO_ELEV_ARQ)    
+
+        #pega a data dos arquivos
+        bloom_date = bloomberg[0]
+        eleven_date = eleven[0]
 
         print('Data Bloomberg: ' + str(bloom_date))
         print('\n')
         print('Data Eleven: ' + str(eleven_date))
         print('\n')  
         
-        process_ticker(bloom_df, eleven_df, xp_df, resultado_df)
+        process_ticker(bloom_df, eleven_df, xp_df)
 
 
 def start_calc_preco():
-    try:
+    #try:
         print('\n')
         ticker = input("ticker: ")
         evebtda = float(input("ev/ebtda projetado: "))
@@ -364,6 +311,9 @@ def start_calc_preco():
         margem = int(input("Margem de segurança(em %): "))
 
         df_necton = parse_necton(NECTON_ARQ)
+        df_necton = df_necton[1]
+
+        
         #substitui todos os caracteres - por 0000
         df_necton = df_necton.replace('-', 0.00, regex=True)
         df_necton = df_necton.replace(' ', 0.00, regex=True)
@@ -392,12 +342,11 @@ def start_calc_preco():
        
         print_indicadores(ativo)
 
-    except:
-        print("Ocorreu um erro...Reiniciando")
-        start_calc_preco()
+   # except:
+    #    print("Ocorreu um erro...Reiniciando")
+   #     start_calc_preco()
         
-    start_calc_preco()
-
+        start_calc_preco()
 
 #recebe uma linha necton
 def print_indicadores(ativo):
@@ -427,13 +376,19 @@ def print_indicadores(ativo):
     
 
 def start():
+    #baixa planilha necton
+    baixar_arquivo(NECTON_URL, NECTON_ARQ)
+
+    #baixa planilha XP
+    baixar_arquivo(XP_URL, XP_ARQ)
+    
     print('\n')  
     print("1 - Consenso de Mercado")
     print("2 - Calculo de Valor Justo (ev/ebtda)")
     print('\n')  
     menu = input("Escolha um número de menu: ")
 
-    if menu == 1:
+    if menu == '1':
         start_consenso()
     else:
         start_calc_preco()
@@ -445,15 +400,4 @@ start()
 
 #df = read_page_eleven(ELEVEN_ARQ, "1", cord_page1)
 
-    
-
-
-
-
-
-
-
-
-
-
-
+  
