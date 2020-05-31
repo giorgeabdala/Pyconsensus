@@ -4,20 +4,14 @@ import pandas as pd
 import subprocess
 import requests 
 
-#Recomendação XP
-#https://researchxp1.s3-sa-east-1.amazonaws.com/Guia+de+recomenda%C3%A7%C3%B5es+-+A%C3%A7oes+-+Research+XP+-+30.08.2019.xlsx
-
-
 # caminho do arquivo blomberg
 ELEVEN_ARQ = 'eleven.pdf'
-
 
 XP_ARQ = 'xp.xlsx'
 XP_URL = "https://researchxp1.s3-sa-east-1.amazonaws.com/Guia+de+recomenda%C3%A7%C3%B5es+-+A%C3%A7oes+-+Research+XP+-+30.08.2019.xlsx"
 
 NECTON_ARQ = "necton.xlsx"
 NECTON_URL = "https://apibackoffice.necton.com.br/api/archive/24a55bad-13d2-4686-bbbc-daaa57c7aca9"
-
 
 #cabeçalho da tabela de resultados
 HEADER = ['TICKER ', 'ELEVEN ', 'UPSIDE', 'BLOOMBERG ', 'UPSIDE', 'XP', 'UPSIDE']
@@ -29,7 +23,7 @@ COLUMN_NAME_BLOOMBERG = ['ticker', 'target', 'consenso', 'qtdInst', 'qtdCompra',
 COLUMN_NAME_XP = ['ticker', 'target']
 COLUMN_NAME_NECTON = ['equity', 'nome', 'setor', 'ticker', 'atual', '∆% 2020', '∆% 12 meses', 'target', 'upside', 'qtdAcoes', 'freefloat', 'Beta 2Y', 'Volatil. 12m', 'Volume 1D (R$ m)',
                       'BTC ÷ Free Float', 'Taxa Aluguel', 'p/vpa', 'p/l', 'evebtda', 'ROL 12m', 'ebtda', 'Mg. EBITDA', 'lpa', 'Mg, Líquida', 'dl', 'dl/ebtda', 'Pat. Líquido',
-                      'WACC', 'dy', 'Payout', 'roe']
+                      'wacc', 'dy', 'payout', 'roe']
 
 
 #cordenada data arquivo eleven
@@ -57,22 +51,28 @@ def baixar_arquivo(url, endereco):
         resposta.raise_for_status()
 
 
-def parse_necton(excel_file):
-    #carrega arquivo XP excel
-    df = pd.read_excel(excel_file, sheet_name='Planilha11')
+#######################
+#VALUATION POR GORDON##
+#######################
 
-    #pega a data 
-    date = df.iloc[0,1]
-    #Dá nome para as colunas. Usa o vetor definido no inicio do sript
-    df.columns = COLUMN_NAME_NECTON
-    #deleta as linhas vazias da tabela
-    df = df.drop(df.index[0:13])
+#cacula crescimento na perpetuidade
+def calc_crescimento(roe, payout):
+    g = roe * (1 - payout)
+    return g
 
-    result = [date, df]
+#calcula preço justo por Gordon
+def calc_gordon(lpa, payout, wacc, g):
+    dividendos = lpa * payout
+    desconto = wacc - g
+    gordon = dividendos / desconto
+    
+    
+    return gordon
 
-    return result
 
-
+#######################
+#VALUATION POR ev/ebtda#
+#######################
 #recebe o ebtda, a dívida liquida e o evEbda para fazer calculo
 #do valor do mercado
 def calc_ValorMercado(ebtda, dl, evEbtda):
@@ -80,22 +80,12 @@ def calc_ValorMercado(ebtda, dl, evEbtda):
     vm = vm - dl
             
     return vm
+	
 
 
-def parse_xp(excel_file):
-    #carrega arquivo XP excel
-    df = pd.read_excel(excel_file)
-    #deleta as 3 primeiras linhas
-    df = df.drop(df.index[0:3])
-    #deleta as colunas inuteis
-    df = df.drop(df.columns[[0,2,4,6,8,9]], axis=1)
-    #deleta as colunas maiores que 3
-    df = df.drop(df.columns[3:], axis=1)
-    #df = df.drop(df.columns[[0,2,3,5,7,8,9,10,11,12,13,14,15]], axis=1)
-    #rename nas colunas do data frame
-    df.columns = COLUMN_NAME_XP
-
-    return df
+#######################
+#Parse dos arquivos##
+#######################
 
 def parse_xp2(excel_file):
     #carrega arquivo XP excel
@@ -109,18 +99,24 @@ def parse_xp2(excel_file):
     df.columns = COLUMN_NAME_XP
     return df
 
+def parse_necton(excel_file):
+    #carrega arquivo XP excel
+    df = pd.read_excel(excel_file, sheet_name='Planilha11')
 
-    
-    #deleta as colunas inuteis
-    df = df.drop(df.columns[[0,2,4,6,8,9]], axis=1)
-    #deleta as colunas maiores que 3
-    df = df.drop(df.columns[3:], axis=1)
-    #df = df.drop(df.columns[[0,2,3,5,7,8,9,10,11,12,13,14,15]], axis=1)
-    #rename nas colunas do data frame
-    df.columns = COLUMN_NAME_XP
+    #pega a data 
+    date = df.iloc[0,1]
+    #Dá nome para as colunas. Usa o vetor definido no inicio do sript
+    df.columns = COLUMN_NAME_NECTON
+    #deleta as linhas vazias da tabela
+    df = df.drop(df.index[0:13])
+	
+	#substitui todos os caracteres - por 0000
+    df = df.replace('-', 0.00, regex=True)
+    df = df.replace(' ', 0.00, regex=True)
 
-    return df
-    
+    result = [date, df]
+
+    return result
 
 
 
@@ -170,7 +166,36 @@ def parse_eleven(pdf_file):
     return result
 
 
+#############################
+#métodos para imprimir resultados na tela
+#############################
 
+#recebe uma linha necton
+def print_indicadores(ativo):
+     #pega os indicadores fundamentalistas
+    vpa = ativo['p/vpa'].values[0]
+    pl = ativo['p/l'].values[0]
+    evebtatual = ativo['evebtda'].values[0]
+    mgebtda = ativo['Mg. EBITDA'].values[0]
+    lpa = ativo['lpa'].values[0]
+    dlebtda = ativo['dl/ebtda'].values[0]
+    dy = ativo['dy'].values[0] * 100
+    roe = ativo['roe'].values[0] * 100
+
+    print('\n')  
+    print("INDICADORES FUNDAMENTALISTAS")
+    print('P/VPA: ' + "{:12.2f}".format(vpa))
+    print('P/L: ' + "      {:12.2f}".format(pl))
+    print('EV/EBTDA:' + "  {:12.2f}".format(evebtatual))
+    print('Mg. EBITDA:' + "{:12.2f}".format(mgebtda))
+    print('LPA:' + "{:12.2f}".format(lpa))
+    print('DL/EBTDA:' + "  {:12.2f}".format(dlebtda))
+    print('DY:' + "        {:12.2f}%".format(dy))
+    print('ROE:' + "       {:12.2f}%".format(roe))
+    
+    print('\n \n')
+
+#imprime a tabela do consenso de mercado
 def print_table(ativo1_bloom, ativo2_bloom, ativo1_elev, ativo2_elev, ativo1_xp, ativo2_xp, ticker1, ticker2):
     
     #monta string das outras instituições
@@ -186,7 +211,6 @@ def print_table(ativo1_bloom, ativo2_bloom, ativo1_elev, ativo2_elev, ativo1_xp,
     linha1.append(ativo1_bloom['upside'].values[0])
     linha1.append(ativo1_xp['target'].values[0])
     linha1.append(ativo1_xp['upside'].values[0])
-
 
     linha2.append(ativo2_elev['target'].values[0])
     linha2.append(ativo2_elev['upside'].values[0])
@@ -280,6 +304,11 @@ def calcula_upside(atual, target):
     return upside * 100
     
 
+####################
+#MÉTODOS PARA START NAS ESTRATÉGIAS
+#####################
+
+
 def start_consenso():
         #pega os daframe com os dados
         bloomberg = parse_necton(NECTON_ARQ)
@@ -302,8 +331,8 @@ def start_consenso():
         process_ticker(bloom_df, eleven_df, xp_df)
 
 
-def start_calc_preco():
-    #try:
+def start_ev_ebtda():
+    try:
         print('\n')
         ticker = input("ticker: ")
         evebtda = float(input("ev/ebtda projetado: "))
@@ -312,13 +341,6 @@ def start_calc_preco():
 
         df_necton = parse_necton(NECTON_ARQ)
         df_necton = df_necton[1]
-
-        
-        #substitui todos os caracteres - por 0000
-        df_necton = df_necton.replace('-', 0.00, regex=True)
-        df_necton = df_necton.replace(' ', 0.00, regex=True)
-
-    
         ativo = busca_ticker(ticker, df_necton)
 
         ebtda = ativo['ebtda'].values[0]
@@ -342,39 +364,48 @@ def start_calc_preco():
        
         print_indicadores(ativo)
 
-   # except:
-    #    print("Ocorreu um erro...Reiniciando")
-   #     start_calc_preco()
+    except:
+        print("Ocorreu um erro...Reiniciando")
+        start_ev_ebtda()
         
-        start_calc_preco()
+    start_ev_ebtda()
 
-#recebe uma linha necton
-def print_indicadores(ativo):
-     #pega os indicadores fundamentalistas
-    vpa = ativo['p/vpa'].values[0]
-    pl = ativo['p/l'].values[0]
-    evebtatual = ativo['evebtda'].values[0]
-    mgebtda = ativo['Mg. EBITDA'].values[0]
-    lpa = ativo['lpa'].values[0]
-    dlebtda = ativo['dl/ebtda'].values[0]
-    dy = ativo['dy'].values[0] * 100
-    roe = ativo['roe'].values[0] * 100
 
-    print('\n')  
-    print("INDICADORES FUNDAMENTALISTAS")
-    print('P/VPA: ' + "{:12.2f}".format(vpa))
-    print('P/L: ' + "      {:12.2f}".format(pl))
-    print('EV/EBTDA:' + "  {:12.2f}".format(evebtatual))
-    print('Mg. EBITDA:' + "{:12.2f}".format(mgebtda))
-    print('LPA:' + "{:12.2f}".format(lpa))
-    print('DL/EBTDA:' + "  {:12.2f}".format(dlebtda))
-    print('DY:' + "        {:12.2f}%".format(dy))
-    print('ROE:' + "       {:12.2f}%".format(roe))
-    
-    print('\n \n')
+def start_gordon():
+	try:
+	    print('\n')
+	    ticker = input("ticker: ")
+	    margem = int(input("Margem de segurança(em %): "))
+	
+	    df_necton = parse_necton(NECTON_ARQ)
+	    df_necton = df_necton[1]
+	
+	    #busca o ativo na tabela necton
+	    ativo = busca_ticker(ticker, df_necton)
+	
+	    lpa = ativo['lpa'].values[0]
+	    roe = ativo['roe'].values[0]
+	    payout = ativo['payout'].values[0]
+	    wacc = ativo['wacc'].values[0]
+	
+	    g = calc_crescimento(roe, payout)
+	
+	    preco_justo = calc_gordon(lpa, payout, wacc, g)
+	    #preço com margem de segurança
+	    preco_margem = preco_justo - (margem/100 * preco_justo)
+	
+	    print('\n')  
+	    print('Preço Justo: ' + "     {:12.2f}".format(preco_justo))
+	    print('Preço com Margem: ' + "{:12.2f}".format(preco_margem))
+       
+	    print_indicadores(ativo)
+	
+	except:
+	    print("Ocorreu um erro...Reiniciando")
+	    start_gordon()
 
-    
-
+	start_gordon()
+            
 def start():
     #baixa planilha necton
     baixar_arquivo(NECTON_URL, NECTON_ARQ)
@@ -384,15 +415,17 @@ def start():
     
     print('\n')  
     print("1 - Consenso de Mercado")
-    print("2 - Calculo de Valor Justo (ev/ebtda)")
+    print("2 - Calculo do Preço Justo (ev/ebtda)")
+    print("3 - Calculo do Preço Justo Modelo Gordon")
     print('\n')  
     menu = input("Escolha um número de menu: ")
 
     if menu == '1':
         start_consenso()
+    elif menu == '2':
+        start_ev_ebtda()
     else:
-        start_calc_preco()
-    
+        start_gordon()
     
     
         
@@ -400,4 +433,15 @@ start()
 
 #df = read_page_eleven(ELEVEN_ARQ, "1", cord_page1)
 
-  
+    
+
+
+
+
+
+
+
+
+
+
+
